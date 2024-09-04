@@ -503,12 +503,9 @@
 <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/qna"></script>
-<<<<<<< HEAD
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@2.3.3/dist/purify.min.js"></script>
 
-=======
->>>>>>> 764cdb82274ecaccfbea5d428fdf589b3cf01b54
 <script>
 const chatMessages = document.getElementById('chat-messages');
 const userInput = document.getElementById('user-input');
@@ -521,16 +518,11 @@ let queryCount = 0;
 let messageHistory = [];
 let wordCount = 0;
 
-<<<<<<< HEAD
 // Function to add message with markdown support and sanitization
-=======
-// Function to add message without typing effect
->>>>>>> 764cdb82274ecaccfbea5d428fdf589b3cf01b54
 function addMsg(message, isUser = false) {
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
     messageElement.classList.add(isUser ? 'user-message' : 'bot-message');
-<<<<<<< HEAD
     
     // Strip unnecessary whitespace and sanitizes the message for markdown support
     let sanitizedMessage = DOMPurify.sanitize(marked.parse(message.trim()));
@@ -540,9 +532,6 @@ function addMsg(message, isUser = false) {
 
     messageElement.innerHTML = sanitizedMessage;
     
-=======
-    messageElement.textContent = message; // Directly set the message content
->>>>>>> 764cdb82274ecaccfbea5d428fdf589b3cf01b54
     chatMessages.appendChild(messageElement);
     chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
 }
