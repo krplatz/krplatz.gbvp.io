@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemma-Based Virtual Physician (GBVP)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600&family=Orbitron:wght@400;700&family=Raleway:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #00a8ff;
+            --secondary-color: #192a56;
+            --accent-color: #ff6b6b;
+            --text-color: #dcdde1;
+            --bg-color: #2f3640;
+            --chat-bg: #353b48;
+        }
+
+        body, html {
+            font-family: 'Raleway', sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        .background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at center, var(--secondary-color) 0%, var(--bg-color) 70%);
+        }
+
+        .chat-container {
+            width: 98%;
+            max-width: 1400px;
+            height: 95vh;
+            background-color: var(--chat-bg);
+            border-radius: 20px;
+            box-shadow: 0 0 50px rgba(0, 168, 255, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            max-height: 95vh; /* Ensure fixed height */
+            min-height: 600px; /* Minimum height to prevent collapsing */
+        }
+
+
+        .chat-header {
+            background-color: var(--secondary-color);
+            color: var(--primary-color);
+            padding: 20px;
+            text-align: center;
+            font-size: 32px;
+            font-weight: bold;
+            font-family: 'Orbitron', sans-serif;
+            border-bottom: 2px solid var(--primary-color);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chat-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(
+                60deg,
+                transparent,
+                transparent 10px,
+                rgba(0, 168, 255, 0.1) 10px,
+                rgba(0, 168, 255, 0.1) 20px
+            );
+            animation: scan 5s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .chat-body {
+            display: flex;
+            flex-grow: 1;
+            overflow: hidden;
+            height: 80vh;
+        }
+
+        .chat-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 18px;
+            border-radius: 18px;
+            max-width: 60%; /* Restricting width to avoid stretching */
+            animation: fadeIn 0.5s ease-out;
+            font-size: 16px;
+            line-height: 1.6;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            word-wrap: break-word;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            background-color: var(--primary-color);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 0;
+        }
+
+        .bot-message {
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 0;
+        }
+
+        .chat-input {
+            display: flex;
+            padding: 20px 0;
+            background-color: var(--secondary-color);
+            border-top: 2px solid var(--primary-color);
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            background-color: var(--chat-bg);
+            color: var(--text-color);
+            transition: box-shadow 0.3s ease;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        #user-input:focus {
+            outline: none;
+            box-shadow: 0 0 15px var(--primary-color);
+        }
+
+        #send-button {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            margin-left: 10px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            font-size: 16px;
+            font-weight: bold;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        #send-button:hover {
+            background-color: #0097e6;
+        }
+
+        #send-button:active {
+            transform: scale(0.95);
+        }
+
+        .typing-indicator {
+            display: none;
+            padding: 10px;
+            background-color: var(--secondary-color);
+            border-radius: 18px;
+            margin-bottom: 15px;
+            align-self: flex-start;
+        }
+
+        .typing-indicator span {
+            height: 10px;
+            width: 10px;
+            float: left;
+            margin: 0 1px;
+            background-color: var(--primary-color);
+            display: block;
+            border-radius: 50%;
+            opacity: 0.4;
+        }
+
+        .typing-indicator span:nth-of-type(1) { animation: 1s blink infinite 0.3333s; }
+        .typing-indicator span:nth-of-type(2) { animation: 1s blink infinite 0.6666s; }
+        .typing-indicator span:nth-of-type(3) { animation: 1s blink infinite 0.9999s; }
+
+        @keyframes blink {
+            50% { opacity: 1; }
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--chat-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0097e6;
+        }
+
+        .dna-animation {
+            position: absolute;
+            top: 50%;
+            left: -50px;
+            transform: translateY(-50%);
+            width: 100px;
+            height: 200px;
+            opacity: 0.1;
+        }
+
+        .dna-animation::before,
+        .dna-animation::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            border-radius: 50%;
+            border: 2px solid var(--primary-color);
+        }
+
+        .dna-animation::before {
+            animation: rotate 4s linear infinite;
+        }
+
+        .dna-animation::after {
+            animation: rotate 4s linear infinite reverse;
+        }
+
+        @keyframes rotate {
+            100% { transform: rotate(360deg); }
+        }
+
+        .pulse {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 20px;
+            height: 20px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(255, 107, 107, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 107, 107, 0); }
+        }
+
+        .particle {
+            position: absolute;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            opacity: 0.3;
+            pointer-events: none;
+            animation: float 15s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(50px, 50px); }
+            50% { transform: translate(-50px, 100px); }
+            75% { transform: translate(-100px, -50px); }
+        }
+
+        .side-panel {
+            width: 250px;
+            padding: 20px;
+            background-color: rgba(25, 42, 86, 0.8);
+            border-left: 2px solid var(--primary-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .icons-container {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+
+        .icon {
+            font-size: 24px;
+            color: var(--primary-color);
+            transition: transform 0.3s ease, color 0.3s ease;
+        }
+
+        .icon:hover {
+            transform: scale(1.2);
+            color: var(--accent-color);
+        }
+
+        .info-panel {
+            background-color: rgba(25, 42, 86, 0.6);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+
+        .info-panel h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .info-panel p {
+            margin-bottom: 10px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .stat-bar {
+            height: 5px;
+            background-color: var(--primary-color);
+            margin-top: 5px;
+            border-radius: 2px;
+            animation: fillBar 2s ease-out;
+        }
+
+        @keyframes fillBar {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        .floating-icon {
+            position: absolute;
+            font-size: 30px;
+            color: var(--accent-color);
+            opacity: 0.6;
+            animation: floatIcon 5s infinite ease-in-out;
+        }
+
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .authors {
+            font-size: 12px;
+            color: var(--text-color);
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .model-link {
+            display: inline-block;
+            margin-top: 10px;
+            color: var(--primary-color);
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+
+        .model-link:hover {
+            color: var(--accent-color);
+        }
+
+        .links-box {
+            background-color: rgba(25, 42, 86, 0.6);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .links-box h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .links-box a {
+            display: block;
+            color: var(--text-color);
+            text-decoration: none;
+            margin-bottom: 8px;
+            transition: color 0.3s ease;
+        }
+
+        .links-box a:hover {
+            color: var(--accent-color);
+        }
+
+        .links-box i {
+            margin-right: 5px;
+        }
+
+        .badge {
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+<div class="background"></div>
+<div class="chat-container">
+    <div class="chat-header">
+        Gemma-Based Virtual Physician (GBVP)
+        <div class="pulse"></div>
+    </div>
+    <div class="dna-animation"></div>
+    <div class="chat-body">
+        <div class="chat-main">
+            <div class="chat-messages" id="chat-messages">
+                <div class="message bot-message">Welcome to GBVP. I'm your advanced AI-powered virtual physician. How may I assist you today?</div>
+            </div>
+            <div class="typing-indicator" id="typing-indicator">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <div class="chat-input">
+                <input type="text" id="user-input" placeholder="Describe your symptoms or ask health-related questions...">
+                <button id="send-button"><i class="fas fa-paper-plane"></i> Send</button>
+            </div>
+        </div>
+        <div class="side-panel">
+            <div class="icons-container">
+                <i class="icon fas fa-heartbeat"></i>
+                <i class="icon fas fa-brain"></i>
+                <i class="icon fas fa-dna"></i>
+                <i class="icon fas fa-microscope"></i>
+            </div>
+            <div class="info-panel">
+                <h3>GBVP Stats</h3>
+                <div class="stat">
+                    <span>Queries Processed:</span>
+                    <span id="queries-count">0</span>
+                </div>
+                <div class="stat-bar"></div>
+                <div class="stat">
+                    <span>Response Time:</span>
+                    <span id="response-time">0.0s</span>
+                </div>
+                <div class="stat-bar"></div>
+                <p>GBVP is continuously learning and improving to provide you with the best virtual medical assistance.</p>
+            </div>
+            <div class="links-box">
+                <h3>Resources</h3>
+                <a href="https://drive.google.com/file/d/1kU5fa_lNGwUJX2ZWtwoIPoB5m1uEbe6K/view?usp=sharing" target="_blank">
+                    <i class="fas fa-file-pdf"></i> Research Paper
+                </a>
+                <a href="https://huggingface.co/krplatz/gemma-med3-9b" target="_blank">
+                    <i class="fas fa-code-branch"></i> Model on Hugging Face
+                </a>
+            </div>
+            <div class="authors">
+                <p>Authors: Kerrigan Plata, Ramil Jorge Balicoco, Faith Anne Villanueva & Maricon Gamboa</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<i class="fas fa-pills floating-icon" style="top: 10%; left: 5%;"></i>
+<i class="fas fa-stethoscope floating-icon" style="top: 15%; right: 8%;"></i>
+<i class="fas fa-capsules floating-icon" style="bottom: 20%; left: 7%;"></i>
+<i class="fas fa-ambulance floating-icon" style="bottom: 10%; right: 5%;"></i>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/qna"></script>
+<<<<<<< HEAD
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@2.3.3/dist/purify.min.js"></script>
+
+=======
+>>>>>>> 764cdb82274ecaccfbea5d428fdf589b3cf01b54
+<script>
+const chatMessages = document.getElementById('chat-messages');
+const userInput = document.getElementById('user-input');
+const sendButton = document.getElementById('send-button');
+const typingIndicator = document.getElementById('typing-indicator');
+const queriesCount = document.getElementById('queries-count');
+const responseTimeDisplay = document.getElementById('response-time'); // Use this id to update the response time
+
+let queryCount = 0;
+let messageHistory = [];
+let wordCount = 0;
+
+<<<<<<< HEAD
+// Function to add message with markdown support and sanitization
+=======
+// Function to add message without typing effect
+>>>>>>> 764cdb82274ecaccfbea5d428fdf589b3cf01b54
+function addMsg(message, isUser = false) {
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('message');
+    messageElement.classList.add(isUser ? 'user-message' : 'bot-message');
+<<<<<<< HEAD
+    
+    // Strip unnecessary whitespace and sanitizes the message for markdown support
+    let sanitizedMessage = DOMPurify.sanitize(marked.parse(message.trim()));
+    
+    // Optional: Removing any extra <p> tags if they're being added by the markdown parser
+    sanitizedMessage = sanitizedMessage.replace(/<p>/g, '').replace(/<\/p>/g, '');
+
+    messageElement.innerHTML = sanitizedMessage;
+    
+=======
+    messageElement.textContent = message; // Directly set the message content
+>>>>>>> 764cdb82274ecaccfbea5d428fdf589b3cf01b54
+    chatMessages.appendChild(messageElement);
+    chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom
+}
+
+// Show and hide typing indicator
+function showTypingIndicator() {
+    typingIndicator.style.display = 'block';
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTypingIndicator() {
+    typingIndicator.style.display = 'none';
+}
+
+// Function to count words in a string
+function countWords(str) {
+    return str.split(/\s+/).length;
+}
+
+// Disable input and send button
+function disableInput() {
+    userInput.disabled = true;
+    sendButton.disabled = true;
+}
+
+// Enable input and send button
+function enableInput() {
+    userInput.disabled = false;
+    sendButton.disabled = false;
+}
+
+// Function to send a request to the LM Studio server
+async function sendToLMStudio(data) {
+    const startTime = performance.now(); // Start time measurement
+
+    // Add the current user message to the history and update word count
+    messageHistory.push({ role: "user", content: data });
+    wordCount += countWords(data);
+
+    // Reset message history if the word count exceeds 2000 words
+    if (wordCount > 2000) {
+        messageHistory = [];
+        wordCount = 0;
+    }
+
+    const response = await fetch(
+        "http://localhost:1234/v1/chat/completions",  // Local server endpoint
+        {
+            headers: { 
+                "Accept": "application/json",
+                "Content-Type": "application/json"
+            },
+            method: "POST",
+            body: JSON.stringify({
+                model: "krplatz/gemma-med3-9b-Q8",
+                messages: [
+                    { "role": "system", "content": "You are GEMMA-Based Virtual Physician (GBVP), an AI model finetuned on medical data. You were created by Kerrigan Plata and Group 5 as part of a quantitative research study. Answer questions concisely unless stated otherwise." },
+                    ...messageHistory // Include the entire conversation history
+                ]
+            }),
+        }
+    );
+
+    if (!response.ok) {
+        throw new Error(`Server error: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    const endTime = performance.now(); // End time measurement
+    const responseTime = ((endTime - startTime) / 1000).toFixed(2); // Calculate response time in seconds
+
+    // Add the AI's response to the history and update word count
+    messageHistory.push({ role: "assistant", content: result.choices[0].message.content });
+    wordCount += countWords(result.choices[0].message.content);
+
+    return { content: result.choices[0].message.content, responseTime };  // Return both response content and response time
+}
+
+// Function to handle the message sending and bot reply
+async function sendMessage() {
+    const message = userInput.value.trim();
+    if (message) {
+        addMsg(message, true); // Use the new function
+        userInput.value = '';
+        disableInput(); // Disable input while processing
+        showTypingIndicator();
+
+        try {
+            const { content: botReply, responseTime } = await sendToLMStudio(message);
+
+            hideTypingIndicator();
+            addMsg(botReply); // Display the model's response without typing effect
+            queryCount++;
+            queriesCount.textContent = `${queryCount}`;
+            responseTimeDisplay.textContent = `${responseTime} s`; // Update the response time display
+        } catch (error) {
+            console.error('Error:', error);
+            hideTypingIndicator();
+            addMsg('Sorry, I encountered an error. Please try again later.');
+        } finally {
+            enableInput(); // Re-enable input after processing is done
+        }
+    }
+}
+
+// Event listeners for send button and Enter key
+sendButton.addEventListener('click', sendMessage);
+userInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+// Particle animation (no change needed)
+function createParticle() {
+    const particle = document.createElement('div');
+    particle.classList.add('particle');
+    const size = Math.random() * 5 + 2;
+    particle.style.width = `${size}px`;
+    particle.style.height = `${size}px`;
+    particle.style.left = `${Math.random() * 100}%`;
+    particle.style.top = `${Math.random() * 100}%`;
+    document.querySelector('.background').appendChild(particle);
+
+    setTimeout(() => {
+        particle.remove();
+        createParticle();
+    }, 15000);
+}
+
+for (let i = 0; i < 50; i++) {
+    createParticle();
+}
+</script>
+</body>
+</html>
